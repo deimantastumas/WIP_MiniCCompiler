@@ -15,8 +15,6 @@ class PreProcessor {
     }
 
     static void run(String file) {
-        System.out.println("PreProcessor...");
-
         BufferedReader reader;
         try {
             reader = new BufferedReader(new FileReader(file));
@@ -122,8 +120,12 @@ class PreProcessor {
         }
 
         //output the source
-        for (String str: lines)
-            System.out.println(str);
+        System.out.println("\nSource code after preprocessing:");
+        for (String str: lines) {
+            if (!str.equals(" "))
+                System.out.println(str);
+        }
+
 
     }
 }

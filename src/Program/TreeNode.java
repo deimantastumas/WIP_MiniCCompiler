@@ -38,10 +38,12 @@ public class TreeNode {
     private int NameTokenIndex = -1;
     private int TokenIndex = -1;
     public SymbolTable symbolTable;
+    private int reg;
+    private boolean valUsed = false;
 
     public TreeNode() {
         this.type = TreeNodeType.TN_TYPE_UNKNOWN;
-        this.subNodes = new ArrayList<TreeNode>();
+        this.subNodes = new ArrayList<>();
     }
 
     public TreeNode(TreeNodeType type) {
@@ -83,7 +85,7 @@ public class TreeNode {
             return;
 
         System.out.print(ident);
-        System.out.println(root.getType());
+        System.out.println(root.getType() + ", " + root.getReg());
 
         for (TreeNode a : root.getSubNodes()) {
             PrintTree(a, ident + "\t");
@@ -114,5 +116,21 @@ public class TreeNode {
 
     public SymbolTable getSymbolTable() {
         return symbolTable;
+    }
+
+    public void setReg(int i) {
+        this.reg = i;
+    }
+
+    public int getReg() {
+        return reg;
+    }
+
+    public void setValUsed() {
+        valUsed = true;
+    }
+
+    public boolean getValUsed() {
+        return valUsed;
     }
 }

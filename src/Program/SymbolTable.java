@@ -9,6 +9,8 @@ class Symbol {
     private int offset;
     private int reg;
 
+    private int valUsed = 0;
+
     public Symbol(String name, String type, int addr, int offset, int reg) {
         this.name = name;
         this.type = type;
@@ -23,6 +25,30 @@ class Symbol {
 
     public String GetType() {
         return type;
+    }
+
+    public int getAddr() {
+        return addr;
+    }
+
+    public int getOffset() {
+        return offset;
+    }
+
+    public int getReg() {
+        return reg;
+    }
+
+    public void setReg(int reg) {
+        this.reg = reg;
+    }
+
+    public void setValUsed() {
+        valUsed = 1;
+    }
+
+    public int getValUsed() {
+        return valUsed;
     }
 }
 
@@ -52,5 +78,14 @@ public class SymbolTable {
 
     public SymbolTable getUpperTable() {
         return upperTable;
+    }
+
+    @Override
+    public String toString() {
+        String table = "";
+        for (Symbol a : symbols) {
+            table += a.GetName() + "\t" + a.GetType() + "\t" + a.getAddr() + "\t" + a.getOffset() + "\t" + a.getReg() + "\n";
+        }
+        return table;
     }
 }

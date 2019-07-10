@@ -51,16 +51,18 @@ class Parser {
     private static Scanner.TKN_TYPE nextToken;
     private static int tokenIndex = 0;
     private static TreeNode root;
+    private static String currentFunc;
     static void run() {
-        System.out.println("Parser...");
+        System.out.println("\nParse tree after parsing:\n");
 
         root = program();                        //Build unbalanced parse tree
         BalanceTree(root);                       //Balance parse tree
         root.PrintTree(root);                    //Print balanced parse tree
         buildTable(root, new SymbolTable());     //Build symbol tables
+        System.out.println("\nSymbol tables:\n");
         printTables(root);                       //Print symbol tables
         dupCheck(root, new SymbolTable());       //Check for duplicate functions or vars
-        varCheck(root, null);        //Check if variables are initialized
+        varCheck(root, root);                    //Check if variables are initialized
     }
 
     public static TreeNode getRoot() {
@@ -85,6 +87,12 @@ class Parser {
                         //we go through various statements inside codeblock
                         for (TreeNode b : cBlockElm.getSubNodes()) {
                             // we go through various things inside statements
+                            if (b.getType() == TreeNodeType.TN_TYPE_EXPRS) {
+                                SyntaxToAst(b);
+                                for (TreeNode expr1 : b.getSubNodes())
+                                    SyntaxToAst(expr1);
+                            }
+
                             if (b.getType() == TreeNodeType.TN_TYPE_EXPR1)
                                 SyntaxToAst(b);
                         }
@@ -98,7 +106,7 @@ class Parser {
 
     private static void printTables(TreeNode root) {
         if (root.getType() == TreeNodeType.TN_TYPE_PROGRAM) {
-            System.out.println("FUNCTIONS:");
+            System.out.println("Global functions:");
             for (Symbol a : root.symbolTable.symbols) {
                 System.out.println(a.GetName() + " " + a.GetType());
             }
@@ -106,9 +114,11 @@ class Parser {
         }
 
         if (root.getType() == TreeNodeType.TN_TYPE_FUNC) {
+            String funcName = getLexeme(root.getNameIndex());
+            currentFunc = funcName;
             for (TreeNode node : root.getSubNodes()) {
                 if (node.getType() == TreeNodeType.TN_TYPE_ARGUMENTS) {
-                    System.out.println("ARGUMENTS:");
+                    System.out.println(funcName + " function arguments:");
                     for (Symbol a : node.symbolTable.symbols) {
                         System.out.println(a.GetName() + " " + a.GetType());
                     }
@@ -118,11 +128,13 @@ class Parser {
         }
 
         if (root.getType() == TreeNodeType.TN_TYPE_CODE_BLOCK) {
-            System.out.println("VAR DECLARATIONS:");
-            for (Symbol a : root.symbolTable.symbols) {
-                System.out.println(a.GetName() + " " + a.GetType());
+            if (root.symbolTable.symbols.size() > 0) {
+                System.out.println(currentFunc + " function variable declarations:");
+                for (Symbol a : root.symbolTable.symbols) {
+                    System.out.println(a.GetName() + " " + a.GetType());
+                }
+                System.out.println();
             }
-            System.out.println();
         }
 
         for (TreeNode a : root.getSubNodes()) {
@@ -131,6 +143,23 @@ class Parser {
     }
 
     private static void SyntaxToAst(TreeNode root) {
+        if (root.getType() == TreeNodeType.TN_TYPE_EXPRS) {
+            if (root.getSubNodes().size() >= 1) {
+                TreeNode exprs = root;
+                if (exprs.getSubNodes().size() == 1)
+                    return;
+                int i = 1;
+                while (true) {
+                    exprs = exprs.getSubByIndex(1);
+                    TreeNode expr1 = exprs.getSubByIndex(0);
+                    root.getSubNodes().add(i++, expr1);
+                    if (exprs.getSubNodes().size() == 1)
+                        break;
+                }
+                root.getSubNodes().remove(root.getSubNodes().size()-1);
+            }
+        }
+
         if (root.getType() == TreeNodeType.TN_TYPE_PROGRAM
                 || root.getType() == TreeNodeType.TN_TYPE_CODE_BLOCK
                 || root.getType() == TreeNodeType.TN_TYPE_ARGUMENTS) {
@@ -217,6 +246,32 @@ class Parser {
             }
             if (root.getSubNodes().size() >= 2)
                 root.getSubNodes().remove(1);
+
+            FurtherBalance(root);
+        }
+    }
+
+    private static void FurtherBalance(TreeNode root) {
+        if (root.getType() == TreeNodeType.TN_TYPE_EXPR1) {
+            if (root.getSubNodes().size() == 3) {
+                TreeNode cnst = root.getSubByIndex(0).getSubByIndex(0).getSubByIndex(0);
+                root.getSubByIndex(0).getSubNodes().add(0, cnst);
+                root.getSubByIndex(0).getSubNodes().remove(1);
+
+                cnst = root.getSubByIndex(2).getSubByIndex(0).getSubByIndex(0);
+                root.getSubByIndex(2).getSubNodes().add(0, cnst);
+                root.getSubByIndex(2).getSubNodes().remove(1);
+            }
+            else if (root.getSubNodes().size() == 1) {
+                TreeNode cnst = root.getSubByIndex(0).getSubByIndex(0).getSubByIndex(0);
+                root.getSubNodes().add(0, cnst);
+                root.getSubNodes().remove(1);
+
+                if (root.getSubByIndex(0).getType() == TreeNodeType.TN_TYPE_FUNCCALL)
+                    SyntaxToAst(root.getSubByIndex(0).getSubByIndex(1));
+            }
+            else
+                System.out.println("ERROR: EXPR1 INCORRECT");
         }
     }
 
@@ -251,7 +306,7 @@ class Parser {
 
     private static boolean SearchScopes(TreeNode root, String name) {
         SymbolTable rootTable = root.symbolTable;
-        while (rootTable.getUpperTable() != null) {
+        while (rootTable != null) {
             for (Symbol a : rootTable.symbols) {
                 if (a.GetName().equals(name))
                     return true;
@@ -325,7 +380,6 @@ class Parser {
                         String name = getLexeme(arg.getNameIndex());
 
                         table.insert(new Symbol(name, type, 0, 0, 0));
-
                     }
                     node.setSymbolTable(table);
                 }
@@ -333,6 +387,7 @@ class Parser {
                 if (node.getType() == TreeNodeType.TN_TYPE_CODE_BLOCK)
                     buildTable(node, table);
             }
+            root.setSymbolTable(table);
         }
 
         if (root.getType() == TreeNodeType.TN_TYPE_CODE_BLOCK) {
@@ -418,6 +473,7 @@ class Parser {
         nameIndex = tokenIndex - 1;
 
         f.setTknIndex(typeIndex, nameIndex);
+        n.setTknIndex(typeIndex, nameIndex);
         matchToken(Scanner.TKN_TYPE.TKN_TYPE_PNCT_OPEN_P);
 
         TreeNode a = arguments();
@@ -465,6 +521,8 @@ class Parser {
         int nameIndex = tokenIndex - 1;
 
         a.setTknIndex(typeIndex, nameIndex);
+        n.setTknIndex(typeIndex, nameIndex);
+        n.setValUsed();
 
         a.getSubNodes().add(t);
         a.getSubNodes().add(n);
@@ -516,15 +574,18 @@ class Parser {
         return Stmts;
     }
 
-    // assign_stmt | return_stmt | decl_stmt | func_call
+    // assign_stmt | return_stmt | decl_stmt | func_call ';'
     private static TreeNode stmt() {
         nextToken = Scanner.getTokenType().get(tokenIndex);
         String lexeme = Scanner.getTokenLexeme().get(tokenIndex);
         lexeme = lexeme.toLowerCase();
         TreeNode tn = null;
         if (nextToken == Scanner.TKN_TYPE.TKN_TYPE_ID) {
-            if (Scanner.getTokenType().get(tokenIndex+1) == Scanner.TKN_TYPE.TKN_TYPE_PNCT_OPEN_P)
+            if (Scanner.getTokenType().get(tokenIndex+1) == Scanner.TKN_TYPE.TKN_TYPE_PNCT_OPEN_P) {
                 tn = func_call();
+                matchToken(Scanner.TKN_TYPE.TKN_TYPE_PNCT_SEMICOLON);
+            }
+
             else
                 tn = assignStmt();
         }
@@ -568,6 +629,7 @@ class Parser {
         tn.getSubNodes().add(idt);
 
         tn.setTknIndex(typeIndex, nameIndex);
+        idt.setTknIndex(typeIndex, nameIndex);
         return tn;
     }
 
@@ -575,8 +637,6 @@ class Parser {
     private static TreeNode returnStmt() {
         TreeNode tn = new TreeNode(TreeNodeType.TN_TYPE_STMT_RETURN);
         matchToken(Scanner.TKN_TYPE.TKN_TYPE_KEYWORD);
-        TreeNode kw = new TreeNode(TreeNodeType.TN_TYPE_KEYWORD);
-        tn.getSubNodes().add(kw);
         TreeNode exp = expr1();
         tn.getSubNodes().add(exp);
         matchToken(Scanner.TKN_TYPE.TKN_TYPE_PNCT_SEMICOLON);
@@ -716,6 +776,8 @@ class Parser {
                 TreeNode id = new TreeNode(TreeNodeType.TN_TYPE_ID);
                 matchToken(Scanner.TKN_TYPE.TKN_TYPE_ID);
                 id.setTknIndex(tokenIndex-1);
+                id.setTknIndex(-1, tokenIndex-1);
+                id.setValUsed();
                 tn.getSubNodes().add(id);
             }
         }
@@ -741,9 +803,9 @@ class Parser {
         TreeNode exp = expr_list();
         matchToken(Scanner.TKN_TYPE.TKN_TYPE_PNCT_CLOSE_P);
 
+        tn.getSubNodes().add(id);
         if (exp != null)
             tn.getSubNodes().add(exp);
-        tn.getSubNodes().add(id);
 
         return tn;
     }

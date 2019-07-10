@@ -54,7 +54,7 @@ class Scanner {
     }
 
     static void run() {
-        System.out.println("Scanner...");
+        System.out.println("Token list after scanning:\n");
         boolean stream = true;
         boolean floating = false;
         char currentCharacter = ' ';
@@ -83,7 +83,6 @@ class Scanner {
                         lexem.append(currentCharacter);
                     }
                     else if (isDelimiter(currentCharacter)) {
-                        //System.out.println("DEL: " + currentCharacter);
                         ChooseDelimiter(currentCharacter);
                         state = States.q0;
                         lexem = new StringBuilder();
@@ -96,7 +95,10 @@ class Scanner {
                         stream = true;
                         break;
                     }
-                    else System.out.println("ERROR in state 0");
+                    else {
+                        System.out.println("ERROR in state 0");
+                        System.out.println(currentCharacter);
+                    }
                     stream = true;
                     break;
                 case q1:
